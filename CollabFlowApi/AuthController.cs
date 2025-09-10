@@ -11,10 +11,12 @@ using Microsoft.AspNetCore.Identity.Data;
 public class AuthController : ControllerBase
 {
     private readonly TokenService _tokenService;
+    private readonly UserRepository _userRepository;
 
-    public AuthController(TokenService tokenService)
+    public AuthController(TokenService tokenService, UserRepository userRepository)
     {
         _tokenService = tokenService;
+        _userRepository = userRepository;
     }
 
     [HttpPost("apple")]
@@ -53,7 +55,7 @@ public class AuthController : ControllerBase
             
             if (sub == null) return Unauthorized("Invalid token");
 
-            var user = await UserRepository.FindOrCreateAsync(sub);
+            var user = await _userRepository.FindOrCreateAsync(sub);
 
             var tokenResponse = _tokenService.CreateTokens(user.Id);
             return Ok(new { tokenResponse });

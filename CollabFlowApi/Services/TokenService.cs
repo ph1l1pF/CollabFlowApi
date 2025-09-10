@@ -75,7 +75,8 @@ public class TokenService
                 ValidateIssuerSigningKey = true,
                 ClockSkew = TimeSpan.Zero
             }, out _);
-
+            
+            // check claim typ
             return principal;
         }
         catch

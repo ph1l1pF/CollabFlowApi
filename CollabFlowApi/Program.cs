@@ -5,14 +5,26 @@ using System.Text.Json.Serialization;
 using CollabFlowApi;
 using CollabFlowApi.Repositories;
 using CollabFlowApi.Services;
-using LiteDB;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// DB Setup
-builder.Services.AddSingleton<ILiteDatabase>(_ => new LiteDatabase("Filename=collabflow.db;Connection=shared"));
+builder.Services.AddSingleton<IMongoClient>(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var connectionString = config.GetConnectionString("MongoDb");
+    return new MongoClient(connectionString);
+});
+
+builder.Services.AddSingleton<IMongoDatabase>(sp =>
+{
+    var client = sp.GetRequiredService<IMongoClient>();
+    var config = sp.GetRequiredService<IConfiguration>();
+    var databaseName = config["MongoDb:DatabaseName"];
+    return client.GetDatabase(databaseName);
+});
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -56,6 +68,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddSingleton<TokenService>();
+builder.Services.AddSingleton<UserRepository>();
 
 builder.Services.AddScoped<ICollaborationRepository, CollaborationRepository>();
 
@@ -75,11 +88,13 @@ app.MapControllers();
 
 // --- API Endpunkte ---
 
-app.MapGet("/collaborations", (ICollaborationRepository repo, ClaimsPrincipal user) =>
+app.MapGet("/collaborations", async (ICollaborationRepository repo, ClaimsPrincipal user) =>
 {
     var userId = GetUserFromToken(user);
     if (userId == null) return Results.Unauthorized();
-    return Results.Ok(repo.GetAll(userId));
+
+    var items = await repo.GetAll(userId);
+    return Results.Ok(items);
 }).RequireAuthorization();
 
 app.MapGet("/collaborations/{id}", async (string id, ICollaborationRepository repo, ClaimsPrincipal user) =>

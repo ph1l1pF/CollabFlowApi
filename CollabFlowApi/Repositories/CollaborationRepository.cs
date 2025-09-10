@@ -1,41 +1,56 @@
-using LiteDB;
+using MongoDB.Driver;
 
 namespace CollabFlowApi.Repositories;
 
 public class CollaborationRepository : ICollaborationRepository
 {
-    private readonly ILiteCollection<Collaboration> _collection;
+    private readonly IMongoCollection<Collaboration> _collection;
 
-    public CollaborationRepository(ILiteDatabase db)
+    public CollaborationRepository(IMongoDatabase database)
     {
-        _collection = db.GetCollection<Collaboration>("collaborations");
-        _collection.EnsureIndex(x => x.Id, true);
+        _collection = database.GetCollection<Collaboration>("collaborations");
+
+        // Index auf UserId + Id setzen
+        var indexKeys = Builders<Collaboration>.IndexKeys
+            .Ascending(c => c.Id)
+            .Ascending(c => c.UserId);
+        var indexOptions = new CreateIndexOptions { Unique = true };
+        var model = new CreateIndexModel<Collaboration>(indexKeys, indexOptions);
+        _collection.Indexes.CreateOne(model);
     }
 
-    public Task<IEnumerable<Collaboration>> GetAll(string? userId)
+    public Task<List<Collaboration>> GetAll(string? userId)
     {
-        var items = _collection.Find(c => c.UserId == userId);
-        return Task.FromResult(items);
+        var filter = Builders<Collaboration>.Filter.Eq(c => c.UserId, userId);
+        return _collection.Find(filter).ToListAsync();
     }
 
-    public Task<Collaboration?> GetById(string user, string id) =>
-        Task.FromResult(_collection.FindOne(c => c.Id == id && c.UserId == user));
+    public async Task<Collaboration?> GetById(string userId, string id)
+    {
+        var filter = Builders<Collaboration>.Filter.Eq(c => c.Id, id) &
+                     Builders<Collaboration>.Filter.Eq(c => c.UserId, userId);
+        return await _collection.Find(filter).FirstOrDefaultAsync();
+    }
 
-    public Task AddOrUpdate(Collaboration collab, string userId)
+    public async Task AddOrUpdate(Collaboration collab, string userId)
     {
         collab.UserId = userId;
-        _collection.Upsert(collab);
-        return Task.CompletedTask;
+
+        var filter = Builders<Collaboration>.Filter.Eq(c => c.Id, collab.Id) &
+                     Builders<Collaboration>.Filter.Eq(c => c.UserId, userId);
+
+        await _collection.ReplaceOneAsync(
+            filter,
+            collab,
+            new ReplaceOptions { IsUpsert = true });
     }
 
     public async Task<bool> Delete(string id, string userId)
     {
-        var existing = await GetById(userId, id);
-        if (existing == null) return false;
-        if (existing.UserId != userId)
-        {
-            throw new ArgumentException("User does not belong to this Collaboration", nameof(userId));
-        }
-        return _collection.DeleteMany(c => c.Id == id) > 0;
+        var filter = Builders<Collaboration>.Filter.Eq(c => c.Id, id) &
+                     Builders<Collaboration>.Filter.Eq(c => c.UserId, userId);
+
+        var result = await _collection.DeleteOneAsync(filter);
+        return result.DeletedCount > 0;
     }
 }
