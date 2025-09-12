@@ -6,25 +6,35 @@ using CollabFlowApi;
 using CollabFlowApi.Repositories;
 using CollabFlowApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using MongoDB.Driver;
+using Npgsql;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<IMongoClient>(sp =>
-{
-    var config = sp.GetRequiredService<IConfiguration>();
-    var connectionString = config.GetConnectionString("MongoDb");
-    return new MongoClient(connectionString);
-});
+var databaseUrl = builder.Configuration["DATABASE_URL"] ?? throw new Exception("Data Source is missing from configuration");
 
-builder.Services.AddSingleton<IMongoDatabase>(sp =>
+var databaseUri = new Uri(databaseUrl);
+
+string[] userInfo = databaseUri.UserInfo.Split(':');
+
+var builders = new NpgsqlConnectionStringBuilder
 {
-    var client = sp.GetRequiredService<IMongoClient>();
-    var config = sp.GetRequiredService<IConfiguration>();
-    var databaseName = config["MongoDb:DatabaseName"];
-    return client.GetDatabase(databaseName);
-});
+    Host = databaseUri.Host,
+    Port = databaseUri.Port,
+    Username = userInfo[0],
+    Password = userInfo[1],
+    Database = databaseUri.AbsolutePath.TrimStart('/'),
+    SslMode = SslMode.Require,
+};
+
+var connectionString = builders.ToString();
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
+builder.Services.AddScoped<ICollaborationRepository, CollaborationRepository>();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -67,12 +77,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddSingleton<TokenService>();
-builder.Services.AddSingleton<UserRepository>();
+builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<UserRepository>();
 
 builder.Services.AddScoped<ICollaborationRepository, CollaborationRepository>();
 
-builder.Services.AddSingleton<TokenService>();
+builder.Services.AddScoped<TokenService>();
 
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
@@ -80,6 +90,12 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
 
 app.UseAuthentication(); 
 app.UseAuthorization();  

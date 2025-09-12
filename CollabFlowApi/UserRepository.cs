@@ -1,42 +1,47 @@
-using MongoDB.Driver;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
+
+namespace CollabFlowApi.Repositories;
 
 public class UserRepository
 {
-    private readonly IMongoCollection<User> _collection;
+    private readonly AppDbContext _context;
 
-    public UserRepository(IMongoDatabase database)
+    public UserRepository(AppDbContext context)
     {
-        _collection = database.GetCollection<User>("users");
-
-        // Index auf AppleSub (eindeutig, da pro Apple User nur ein Eintrag existiert)
-        var indexKeys = Builders<User>.IndexKeys.Ascending(u => u.AppleSub);
-        var indexOptions = new CreateIndexOptions { Unique = true };
-        var model = new CreateIndexModel<User>(indexKeys, indexOptions);
-        _collection.Indexes.CreateOne(model);
+        _context = context;
     }
 
     public async Task<User> FindOrCreateAsync(string appleSub)
     {
-        var filter = Builders<User>.Filter.Eq(u => u.AppleSub, appleSub);
-        var user = await _collection.Find(filter).FirstOrDefaultAsync();
+        // Try to find existing user
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.AppleSub == appleSub);
 
-        if (user == null)
+        if (user != null)
+            return user;
+
+        // Create new user
+        user = new User
         {
-            user = new User
-            {
-                Id = Guid.NewGuid().ToString(),
-                AppleSub = appleSub
-            };
+            Id = Guid.NewGuid().ToString(),
+            AppleSub = appleSub
+        };
 
-            await _collection.InsertOneAsync(user);
-        }
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
 
         return user;
     }
 }
 
+
+[Table("users")]
 public class User
 {
-    public string Id { get; set; } = default!;
+    [Key]
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+
+    [Required]
     public string AppleSub { get; set; } = default!;
 }
