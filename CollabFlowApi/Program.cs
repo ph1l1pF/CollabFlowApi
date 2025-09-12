@@ -148,9 +148,8 @@ app.MapDelete("/collaborations", async (ICollaborationRepository repo, ClaimsPri
     var userId = GetUserFromToken(user);
 
     if (userId == null) return Results.Unauthorized();
-    
-    var deleted = await repo.Delete(userId);
-    return deleted ? Results.NoContent() : Results.NotFound();
+    await repo.Delete(userId);
+    return Results.Ok();
 }).RequireAuthorization();
 
 app.Run();
