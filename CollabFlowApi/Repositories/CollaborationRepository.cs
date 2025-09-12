@@ -53,4 +53,11 @@ public class CollaborationRepository : ICollaborationRepository
         var result = await _collection.DeleteOneAsync(filter);
         return result.DeletedCount > 0;
     }
+
+    public async Task<bool> Delete(string userId)
+    {
+        var filter = Builders<Collaboration>.Filter.Eq(c => c.UserId, userId);
+        var result = await _collection.DeleteOneAsync(filter);
+        return result.DeletedCount > 0;
+    }
 }

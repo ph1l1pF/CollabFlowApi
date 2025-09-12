@@ -6,4 +6,6 @@ public interface ICollaborationRepository
     Task<Collaboration?> GetById(string s, string id);
     Task AddOrUpdate(Collaboration collab, string userId);
     Task<bool> Delete(string id, string userId);
+    Task<bool> Delete(string userId);
+
 }

@@ -127,6 +127,16 @@ app.MapDelete("/collaborations/{id}", async (string id, ICollaborationRepository
     return deleted ? Results.NoContent() : Results.NotFound();
 }).RequireAuthorization();
 
+app.MapDelete("/collaborations", async (ICollaborationRepository repo, ClaimsPrincipal user) =>
+{
+    var userId = GetUserFromToken(user);
+
+    if (userId == null) return Results.Unauthorized();
+    
+    var deleted = await repo.Delete(userId);
+    return deleted ? Results.NoContent() : Results.NotFound();
+}).RequireAuthorization();
+
 app.Run();
 
 static string? GetUserFromToken(ClaimsPrincipal claimsPrincipal)
