@@ -74,10 +74,9 @@ public class Deadline
     public DateTime Date { get; set; }
     public bool SendNotification { get; set; }
     public int? NotifyDaysBefore { get; set; }
-    public Deadline() { }
     public Deadline(DateTime date, bool sendNotification, int? notifyDaysBefore = 1)
     {
-        Date = date;
+        Date = DateTime.SpecifyKind(date, DateTimeKind.Utc);
         SendNotification = sendNotification;
         NotifyDaysBefore = notifyDaysBefore;
     }
