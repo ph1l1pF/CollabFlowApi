@@ -11,11 +11,11 @@ public class CollaborationRepository : ICollaborationRepository
         _context = context;
     }
 
-    public async Task<List<Collaboration>> GetAll(string userId)
+    public Task<List<Collaboration>> GetAll(string userId)
     {
         var query = _context.Collaborations.AsQueryable();
         query = query.Where(c => c.UserId == userId);
-        return await query.ToListAsync();
+        return query.ToListAsync();
     }
 
     public Task<Collaboration?> GetById(string userId, string id)

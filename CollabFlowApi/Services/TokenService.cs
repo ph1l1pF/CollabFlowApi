@@ -38,7 +38,8 @@ public class TokenService
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claimsAccessToken,
-            expires: DateTime.UtcNow.AddHours(1),
+            //expires: DateTime.UtcNow.Minutes(15),
+            expires: DateTime.UtcNow.AddMinutes(1), // TODO remove! only for debugging
             signingCredentials: creds
         );
         
@@ -46,7 +47,8 @@ public class TokenService
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claimsRefreshToken,
-            expires: DateTime.UtcNow.AddDays(10),
+            //expires: DateTime.UtcNow.AddDays(14),
+            expires: DateTime.UtcNow.AddMinutes(3), // TODO remove! only for debugging
             signingCredentials: creds
         );
 

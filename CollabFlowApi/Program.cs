@@ -14,12 +14,9 @@ using Npgsql;
 var builder = WebApplication.CreateBuilder(args);
 
 var databaseUrl = builder.Configuration["DATABASE_URL"] ?? throw new Exception("Data Source is missing from configuration");
-
 var databaseUri = new Uri(databaseUrl);
-
-string[] userInfo = databaseUri.UserInfo.Split(':');
-
-var builders = new NpgsqlConnectionStringBuilder
+var userInfo = databaseUri.UserInfo.Split(':');
+var connectionStringBuilder = new NpgsqlConnectionStringBuilder
 {
     Host = databaseUri.Host,
     Port = databaseUri.Port,
@@ -28,11 +25,8 @@ var builders = new NpgsqlConnectionStringBuilder
     Database = databaseUri.AbsolutePath.TrimStart('/'),
     SslMode = SslMode.Require,
 };
-
-var connectionString = builders.ToString();
-
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+var connectionString = connectionStringBuilder.ToString();
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 
 builder.Services.AddScoped<ICollaborationRepository, CollaborationRepository>();
 
